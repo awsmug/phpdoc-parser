@@ -99,6 +99,45 @@ class Plugin {
 			);
 		}
 
+
+		if ( ! post_type_exists( 'wp-parser-trait' ) ) {
+
+			register_post_type(
+				'wp-parser-trait',
+				array(
+					'has_archive' => 'traits',
+					'label'       => __( 'Traits', 'wp-parser' ),
+					'public'      => true,
+					'rewrite'     => array(
+						'feeds'      => false,
+						'slug'       => 'trait',
+						'with_front' => false,
+					),
+					'supports'    => $supports,
+				)
+			);
+		}
+
+
+		if ( ! post_type_exists( 'wp-parser-interface' ) ) {
+
+			register_post_type(
+				'wp-parser-interface',
+				array(
+					'has_archive' => 'interfaces',
+					'label'       => __( 'Interfaces', 'wp-parser' ),
+					'public'      => true,
+					'rewrite'     => array(
+						'feeds'      => false,
+						'slug'       => 'interface',
+						'with_front' => false,
+					),
+					'supports'    => $supports,
+				)
+			);
+		}
+
+
 		if ( ! post_type_exists( 'wp-parser-hook' ) ) {
 
 			register_post_type(
@@ -123,7 +162,7 @@ class Plugin {
 	 */
 	public function register_taxonomies() {
 
-		$object_types = array( 'wp-parser-class', 'wp-parser-method', 'wp-parser-function', 'wp-parser-hook' );
+		$object_types = array( 'wp-parser-class', 'wp-parser-trait', 'wp-parser-interface', 'wp-parser-method', 'wp-parser-function', 'wp-parser-hook' );
 
 		if ( ! taxonomy_exists( 'wp-parser-source-file' ) ) {
 

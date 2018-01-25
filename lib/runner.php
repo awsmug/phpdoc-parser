@@ -123,6 +123,7 @@ function parse_files( $files, $root ) {
 				'end_line'   => $class->getNode()->getAttribute( 'endLine' ),
 				'final'      => $class->isFinal(),
 				'abstract'   => $class->isAbstract(),
+				'uses'       => $class->getTraits(),
 				'extends'    => $class->getParentClass(),
 				'implements' => $class->getInterfaces(),
 				'properties' => export_properties( $class->getProperties() ),
@@ -131,6 +132,35 @@ function parse_files( $files, $root ) {
 			);
 
 			$out['classes'][] = $class_data;
+		}
+
+		foreach ( $file->getTraits() as $trait ) {
+			$trait_data = array(
+				'name'       => $trait->getShortName(),
+				'namespace'  => $trait->getNamespace(),
+				'line'       => $trait->getLineNumber(),
+				'end_line'   => $trait->getNode()->getAttribute( 'endLine' ),
+				'properties' => export_properties( $trait->getProperties() ),
+				'methods'    => export_methods( $trait->getMethods() ),
+				'doc'        => export_docblock( $trait ),
+			);
+
+			$out['traits'][] = $trait_data;
+		}
+
+		foreach ( $file->getInterfaces() as $interface ) {
+			$interface_data = array(
+				'name'       => $interface->getShortName(),
+				'namespace'  => $interface->getNamespace(),
+				'line'       => $interface->getLineNumber(),
+				'end_line'   => $interface->getNode()->getAttribute( 'endLine' ),
+				'extends'    => $interface->getParentInterfaces(),
+				'properties' => export_properties( $interface->getProperties() ),
+				'methods'    => export_methods( $interface->getMethods() ),
+				'doc'        => export_docblock( $interface ),
+			);
+
+			$out['interfaces'][] = $interface_data;
 		}
 
 		$output[] = $out;

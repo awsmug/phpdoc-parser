@@ -97,6 +97,8 @@ class Importer implements LoggerAwareInterface {
 			$args,
 			array(
 				'post_type_class'        => 'wp-parser-class',
+				'post_type_trait'        => 'wp-parser-trait',
+				'post_type_interface'    => 'wp-parser-interface',
 				'post_type_method'       => 'wp-parser-method',
 				'post_type_function'     => 'wp-parser-function',
 				'post_type_hook'         => 'wp-parser-hook',
@@ -147,8 +149,8 @@ class Importer implements LoggerAwareInterface {
 		delete_option( 'wp_parser_root_import_dir' );
 
 		// Sanity check -- do the required post types exist?
-		if ( ! post_type_exists( $this->post_type_class ) || ! post_type_exists( $this->post_type_function ) || ! post_type_exists( $this->post_type_hook ) ) {
-			$this->logger->error( sprintf( 'Missing post type; check that "%1$s", "%2$s", and "%3$s" are registered.', $this->post_type_class, $this->post_type_function, $this->post_type_hook ) );
+		if ( ! post_type_exists( $this->post_type_class ) || ! post_type_exists( $this->post_type_trait ) || ! post_type_exists( $this->post_type_interface ) || ! post_type_exists( $this->post_type_function ) || ! post_type_exists( $this->post_type_hook ) ) {
+			$this->logger->error( sprintf( 'Missing post type; check that "%1$s", "%2$s", "%3$s", "%4$s", and "%5$s" are registered.', $this->post_type_class, $this->post_type_trait, $this->post_type_interface, $this->post_type_function, $this->post_type_hook ) );
 			exit;
 		}
 
@@ -301,9 +303,11 @@ class Importer implements LoggerAwareInterface {
 
 		// TODO ensures values are set, but better handled upstream later
 		$file = array_merge( array(
-			'functions' => array(),
-			'classes'   => array(),
-			'hooks'     => array(),
+			'functions'  => array(),
+			'classes'    => array(),
+			'traits'     => array(),
+			'interfaces' => array(),
+			'hooks'      => array(),
 		), $file );
 
 		$count = 0;
@@ -319,6 +323,24 @@ class Importer implements LoggerAwareInterface {
 
 		foreach ( $file['classes'] as $class ) {
 			$this->import_class( $class, $import_ignored );
+			$count ++;
+
+			if ( ! $skip_sleep && 0 == $count % 10 ) {
+				sleep( 3 );
+			}
+		}
+
+		foreach ( $file['traits'] as $trait ) {
+			$this->import_trait( $trait, $import_ignored );
+			$count ++;
+
+			if ( ! $skip_sleep && 0 == $count % 10 ) {
+				sleep( 3 );
+			}
+		}
+
+		foreach ( $file['interfaces'] as $interface ) {
+			$this->import_interface( $interface, $import_ignored );
 			$count ++;
 
 			if ( ! $skip_sleep && 0 == $count % 10 ) {
@@ -422,6 +444,7 @@ class Importer implements LoggerAwareInterface {
 		// Set class-specific meta
 		update_post_meta( $class_id, '_wp-parser_final', (string) $data['final'] );
 		update_post_meta( $class_id, '_wp-parser_abstract', (string) $data['abstract'] );
+		update_post_meta( $class_id, '_wp-parser_uses', $data['uses'] );
 		update_post_meta( $class_id, '_wp-parser_extends', $data['extends'] );
 		update_post_meta( $class_id, '_wp-parser_implements', $data['implements'] );
 		update_post_meta( $class_id, '_wp-parser_properties', $data['properties'] );
@@ -434,6 +457,65 @@ class Importer implements LoggerAwareInterface {
 		}
 
 		return $class_id;
+	}
+
+	/**
+	 * Create a post for a trait
+	 *
+	 * @param array $data           Trait.
+	 * @param bool  $import_ignored Optional; defaults to false. If true, functions marked `@ignore` will be imported.
+	 * @return bool|int Post ID of this function, false if any failure.
+	 */
+	protected function import_trait( array $data, $import_ignored = false ) {
+
+		// Insert this trait
+		$trait_id = $this->import_item( $data, 0, $import_ignored, array( 'post_type' => $this->post_type_trait ) );
+
+		if ( ! $trait_id ) {
+			return false;
+		}
+
+		// Set trait-specific meta
+		update_post_meta( $trait_id, '_wp-parser_properties', $data['properties'] );
+
+		// Now add the methods
+		foreach ( $data['methods'] as $method ) {
+			// Namespace method names with the trait name
+			$method['name'] = $data['name'] . '::' . $method['name'];
+			$this->import_method( $method, $trait_id, $import_ignored );
+		}
+
+		return $trait_id;
+	}
+
+	/**
+	 * Create a post for an interface
+	 *
+	 * @param array $data           Interface.
+	 * @param bool  $import_ignored Optional; defaults to false. If true, functions marked `@ignore` will be imported.
+	 * @return bool|int Post ID of this function, false if any failure.
+	 */
+	protected function import_interface( array $data, $import_ignored = false ) {
+
+		// Insert this interface
+		$interface_id = $this->import_item( $data, 0, $import_ignored, array( 'post_type' => $this->post_type_interface ) );
+
+		if ( ! $interface_id ) {
+			return false;
+		}
+
+		// Set interface-specific meta
+		update_post_meta( $interface_id, '_wp-parser_extends', $data['extends'] );
+		update_post_meta( $interface_id, '_wp-parser_properties', $data['properties'] );
+
+		// Now add the methods
+		foreach ( $data['methods'] as $method ) {
+			// Namespace method names with the interface name
+			$method['name'] = $data['name'] . '::' . $method['name'];
+			$this->import_method( $method, $interface_id, $import_ignored );
+		}
+
+		return $interface_id;
 	}
 
 	/**
@@ -535,6 +617,14 @@ class Importer implements LoggerAwareInterface {
 					$this->logger->info( "\t" . sprintf( 'Skipped importing @ignore-d class "%1$s"', $ns_name ) );
 					break;
 
+				case $this->post_type_trait:
+					$this->logger->info( "\t\t" . sprintf( 'Skipped importing @ignore-d trait "%1$s"', $ns_name ) );
+					break;
+
+				case $this->post_type_interface:
+					$this->logger->info( "\t\t" . sprintf( 'Skipped importing @ignore-d interface "%1$s"', $ns_name ) );
+					break;
+
 				case $this->post_type_method:
 					$this->logger->info( "\t\t" . sprintf( 'Skipped importing @ignore-d method "%1$s"', $ns_name ) );
 					break;
@@ -606,6 +696,14 @@ class Importer implements LoggerAwareInterface {
 			switch ( $post_data['post_type'] ) {
 				case $this->post_type_class:
 					$this->errors[] = "\t" . sprintf( 'Problem inserting/updating post for class "%1$s"', $ns_name, $post_id->get_error_message() );
+					break;
+
+				case $this->post_type_trait:
+					$this->errors[] = "\t\t" . sprintf( 'Problem inserting/updating post for trait "%1$s"', $ns_name, $post_id->get_error_message() );
+					break;
+
+				case $this->post_type_interface:
+					$this->errors[] = "\t\t" . sprintf( 'Problem inserting/updating post for interface "%1$s"', $ns_name, $post_id->get_error_message() );
 					break;
 
 				case $this->post_type_method:
@@ -718,7 +816,7 @@ class Importer implements LoggerAwareInterface {
 			$data['doc']['tags']['deprecated'] = $this->file_meta['deprecated'];
 		}
 
-		if ( $post_data['post_type'] !== $this->post_type_class ) {
+		if ( ! in_array( $post_data['post_type'], array( $this->post_type_class, $this->post_type_trait, $this->post_type_interface ), true ) ) {
 			$anything_updated[] = update_post_meta( $post_id, '_wp-parser_args', $data['arguments'] );
 		}
 
@@ -746,6 +844,16 @@ class Importer implements LoggerAwareInterface {
 		switch ( $post_data['post_type'] ) {
 			case $this->post_type_class:
 				$this->logger->info( "\t" . sprintf( '%1$s class "%2$s"', $action, $ns_name ) );
+				break;
+
+			case $this->post_type_trait:
+				$indent = ( $parent_post_id ) ? "\t\t" : "\t";
+				$this->logger->info( $indent . sprintf( '%1$s trait "%2$s"', $action, $ns_name ) );
+				break;
+
+			case $this->post_type_interface:
+				$indent = ( $parent_post_id ) ? "\t\t" : "\t";
+				$this->logger->info( $indent . sprintf( '%1$s interface "%2$s"', $action, $ns_name ) );
 				break;
 
 			case $this->post_type_hook:
