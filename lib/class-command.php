@@ -13,11 +13,17 @@ class Command extends WP_CLI_Command {
 	/**
 	 * Generate a JSON file containing the PHPDoc markup, and save to filesystem.
 	 *
-	 * @synopsis <directory> [<output_file>]
+	 * @synopsis <directory> [<output_file>] [--prefix=<prefix>]
 	 *
 	 * @param array $args
 	 */
-	public function export( $args ) {
+	public function export( $args, $assoc_args ) {
+		global $_torroPhpDocPrefix;
+
+		if ( ! empty( $assoc_args['prefix'] ) ) {
+			$_torroPhpDocPrefix = $assoc_args['prefix'];
+		}
+
 		$directory   = realpath( $args[0] );
 		$output_file = empty( $args[1] ) ? 'phpdoc.json' : $args[1];
 		$json        = $this->_get_phpdoc_data( $directory );
