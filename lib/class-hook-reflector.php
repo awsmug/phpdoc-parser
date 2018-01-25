@@ -15,7 +15,13 @@ class Hook_Reflector extends BaseReflector {
 	 */
 	public function getName() {
 		$printer = new PHPParser_PrettyPrinter_Default;
-		return $this->cleanupName( $printer->prettyPrintExpr( $this->node->args[0]->value ) );
+		return $this->cleanupName( $this->replacePrefix( $printer->prettyPrintExpr( $this->node->args[0]->value ) ) );
+	}
+
+	private function replacePrefix( $name ) {
+		global $_torroPhpDocPrefix;
+
+		return preg_replace( '/(\{\$prefix\})|(\{[\$a-z->\(\)]+->get_prefix\(\)\})/U', $_torroPhpDocPrefix, $name );
 	}
 
 	/**

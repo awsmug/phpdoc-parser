@@ -71,18 +71,24 @@ class Command extends WP_CLI_Command {
 	 * Generate JSON containing the PHPDoc markup, convert it into WordPress posts, and insert into DB.
 	 *
 	 * @subcommand create
-	 * @synopsis   <directory> [--quick] [--import-internal] [--user]
+	 * @synopsis   <directory> [--quick] [--import-internal] [--user] [--prefix=<prefix>]
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
 	 */
 	public function create( $args, $assoc_args ) {
+		global $_torroPhpDocPrefix;
+
 		list( $directory ) = $args;
 		$directory = realpath( $directory );
 
 		if ( empty( $directory ) ) {
 			WP_CLI::error( sprintf( "Can't read %1\$s. Does the file exist?", $directory ) );
 			exit;
+		}
+
+		if ( ! empty( $assoc_args['prefix'] ) ) {
+			$_torroPhpDocPrefix = $assoc_args['prefix'];
 		}
 
 		WP_CLI::line();
