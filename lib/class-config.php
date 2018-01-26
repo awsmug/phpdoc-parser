@@ -67,6 +67,10 @@ final class Config {
 		return wp_parse_args( $option, $this->defaults );
 	}
 
+	public function getDefaults() {
+		return $this->defaults;
+	}
+
 	private function getDefault( $key ) {
 		return isset( $this->defaults[ $key ] ) ? $this->defaults[ $key ] : false;
 	}

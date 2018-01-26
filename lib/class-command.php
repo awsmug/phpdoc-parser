@@ -10,25 +10,25 @@ use WP_CLI_Command;
  */
 class Command extends WP_CLI_Command {
 
+	protected $_originalConfig = null;
+
 	/**
 	 * Generate a JSON file containing the PHPDoc markup, and save to filesystem.
 	 *
-	 * @synopsis <directory> [<output_file>] [--prefix=<prefix>]
+	 * @synopsis <directory> [<output_file>] [--hook_prefix=<hook_prefix>] [--namespace=<namespace>] [--version=<version>]
 	 *
 	 * @param array $args
 	 */
 	public function export( $args, $assoc_args ) {
-		global $_torroPhpDocPrefix;
-
-		if ( ! empty( $assoc_args['prefix'] ) ) {
-			$_torroPhpDocPrefix = $assoc_args['prefix'];
-		}
+		$this->_setTemporaryConfig( $assoc_args );
 
 		$directory   = realpath( $args[0] );
 		$output_file = empty( $args[1] ) ? 'phpdoc.json' : $args[1];
 		$json        = $this->_get_phpdoc_data( $directory );
 		$result      = file_put_contents( $output_file, $json );
 		WP_CLI::line();
+
+		$this->_restoreOriginalConfig();
 
 		if ( false === $result ) {
 			WP_CLI::error( sprintf( 'Problem writing %1$s bytes of data to %2$s', strlen( $json ), $output_file ) );
@@ -42,12 +42,14 @@ class Command extends WP_CLI_Command {
 	/**
 	 * Read a JSON file containing the PHPDoc markup, convert it into WordPress posts, and insert into DB.
 	 *
-	 * @synopsis <file> [--quick] [--import-internal]
+	 * @synopsis <file> [--quick] [--import-internal] [--hook_prefix=<hook_prefix>] [--namespace=<namespace>] [--version=<version>]
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
 	 */
 	public function import( $args, $assoc_args ) {
+		$this->_setTemporaryConfig( $assoc_args );
+
 		list( $file ) = $args;
 		WP_CLI::line();
 
@@ -59,48 +61,51 @@ class Command extends WP_CLI_Command {
 		}
 
 		if ( ! $phpdoc ) {
+			$this->_restoreOriginalConfig();
 			WP_CLI::error( sprintf( "Can't read %1\$s. Does the file exist?", $file ) );
 			exit;
 		}
 
 		$phpdoc = json_decode( $phpdoc, true );
 		if ( is_null( $phpdoc ) ) {
+			$this->_restoreOriginalConfig();
 			WP_CLI::error( sprintf( "JSON in %1\$s can't be decoded :(", $file ) );
 			exit;
 		}
 
 		// Import data
 		$this->_do_import( $phpdoc, isset( $assoc_args['quick'] ), isset( $assoc_args['import-internal'] ) );
+
+		$this->_restoreOriginalConfig();
 	}
 
 	/**
 	 * Generate JSON containing the PHPDoc markup, convert it into WordPress posts, and insert into DB.
 	 *
 	 * @subcommand create
-	 * @synopsis   <directory> [--quick] [--import-internal] [--user] [--prefix=<prefix>]
+	 * @synopsis   <directory> [--quick] [--import-internal] [--user] [--hook_prefix=<hook_prefix>] [--namespace=<namespace>] [--version=<version>]
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
 	 */
 	public function create( $args, $assoc_args ) {
-		global $_torroPhpDocPrefix;
+		$this->_setTemporaryConfig( $assoc_args );
 
 		list( $directory ) = $args;
 		$directory = realpath( $directory );
 
 		if ( empty( $directory ) ) {
+			$this->_restoreOriginalConfig();
 			WP_CLI::error( sprintf( "Can't read %1\$s. Does the file exist?", $directory ) );
 			exit;
-		}
-
-		if ( ! empty( $assoc_args['prefix'] ) ) {
-			$_torroPhpDocPrefix = $assoc_args['prefix'];
 		}
 
 		WP_CLI::line();
 
 		// Import data
 		$this->_do_import( $this->_get_phpdoc_data( $directory, 'array' ), isset( $assoc_args['quick'] ), isset( $assoc_args['import-internal'] ) );
+
+		$this->_restoreOriginalConfig();
 	}
 
 	/**
@@ -216,5 +221,22 @@ class Command extends WP_CLI_Command {
 		$importer->import( $data, $skip_sleep, $import_ignored );
 
 		WP_CLI::line();
+	}
+
+	protected function _setTemporaryConfig( $assoc_args ) {
+		$config = array_intersect_key( $assoc_args, Config::getInstance()->getDefaults() );
+
+		if ( ! empty( $config ) ) {
+			$this->_originalConfig = Config::getInstance()->getMultiple( array_keys( $config ) );
+
+			Config::getInstance()->setMultiple( $config );
+		}
+	}
+
+	protected function _restoreOriginalConfig() {
+		if ( $this->_originalConfig ) {
+			Config::getInstance()->setMultiple( $this->_originalConfig );
+			$this->_originalConfig = null;
+		}
 	}
 }
