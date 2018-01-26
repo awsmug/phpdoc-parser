@@ -500,6 +500,16 @@ class Relationships {
 	 * @return string       The post slug for the passed name.
 	 */
 	public function name_to_slug( $name ) {
+		static $namespace = null;
+
+		if ( null === $namespace ) {
+			$namespace = Config::getInstance()->get( 'namespace' );
+		}
+
+		if ( ! empty( $namespace ) && 0 === strpos( $name, $namespace ) && strlen( $name ) > strlen( $namespace ) ) {
+			$name = str_replace( rtrim( $namespace, '\\' ) . '\\', '', $name );
+		}
+
 		return sanitize_title( str_replace( '\\', '-', str_replace( '::', '-', $name ) ) );
 	}
 

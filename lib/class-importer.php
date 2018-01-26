@@ -608,7 +608,7 @@ class Importer implements LoggerAwareInterface {
 
 		$is_new_post = true;
 		$ns_name     = ( empty( $data['namespace'] ) || 'global' === $data['namespace'] ) ? $data['name'] :  $data['namespace'] . '\\' . $data['name'];
-		$slug        = sanitize_title( str_replace( '\\', '-', str_replace( '::', '-', $ns_name ) ) );
+		$slug        = $this->name_to_slug( $ns_name );
 
 		$post_data   = wp_parse_args(
 			$arg_overrides,
@@ -893,6 +893,28 @@ class Importer implements LoggerAwareInterface {
 		do_action( 'wp_parser_import_item', $post_id, $data, $post_data );
 
 		return $post_id;
+	}
+
+	/**
+	 * Simple conversion of a method, function, or hook name to a post slug.
+	 *
+	 * Replaces '::' and '\' to dashes and then runs the name through `sanitize_title()`.
+	 *
+	 * @param  string $name Method, function, or hook name
+	 * @return string       The post slug for the passed name.
+	 */
+	public function name_to_slug( $name ) {
+		static $namespace = null;
+
+		if ( null === $namespace ) {
+			$namespace = Config::getInstance()->get( 'namespace' );
+		}
+
+		if ( ! empty( $namespace ) && 0 === strpos( $name, $namespace ) && strlen( $name ) > strlen( $namespace ) ) {
+			$name = str_replace( rtrim( $namespace, '\\' ) . '\\', '', $name );
+		}
+
+		return sanitize_title( str_replace( '\\', '-', str_replace( '::', '-', $name ) ) );
 	}
 
 	/**
