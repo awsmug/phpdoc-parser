@@ -45,12 +45,6 @@ function get_wp_files( $directory ) {
  * @return array
  */
 function parse_files( $files, $root ) {
-	global $_torroPhpDocPrefix;
-
-	if ( ! isset( $_torroPhpDocPrefix ) ) {
-		$_torroPhpDocPrefix = 'torro_';
-	}
-
 	$output = array();
 
 	foreach ( $files as $filename ) {

@@ -10,6 +10,8 @@ use PHPParser_PrettyPrinter_Default;
  */
 class Hook_Reflector extends BaseReflector {
 
+	protected $hook_prefix;
+
 	/**
 	 * @return string
 	 */
@@ -19,9 +21,15 @@ class Hook_Reflector extends BaseReflector {
 	}
 
 	private function replacePrefix( $name ) {
-		global $_torroPhpDocPrefix;
+		if ( null === $this->hook_prefix ) {
+			$this->hook_prefix = Config::getInstance()->get( 'hook_prefix' );
+		}
 
-		return preg_replace( '/(\{\$prefix\})|(\{[\$a-z->\(\)]+->get_prefix\(\)\})/U', $_torroPhpDocPrefix, $name );
+		if ( empty( $this->hook_prefix ) ) {
+			return $name;
+		}
+
+		return preg_replace( '/(\{\$prefix\})|(\{[\$a-z->\(\)]+->get_prefix\(\)\})/U', $this->hook_prefix, $name );
 	}
 
 	/**
