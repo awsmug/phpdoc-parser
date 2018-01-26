@@ -119,6 +119,30 @@ class Relationships {
 			'to' => 'wp-parser-hook',
 			'title' => array( 'from' => 'Used by Methods', 'to' => 'Uses Hooks' ),
 		) );
+
+		/*
+		 * Classes to classes, traits and interfaces
+		 */
+		p2p_register_connection_type( array(
+			'name' => 'classes_to_classes',
+			'from' => 'wp-parser-class',
+			'to' => 'wp-parser-class',
+			'title' => array( 'from' => 'Extends Class', 'to' => 'Extended By Class' ),
+		) );
+
+		p2p_register_connection_type( array(
+			'name' => 'classes_to_traits',
+			'from' => 'wp-parser-class',
+			'to' => 'wp-parser-trait',
+			'title' => array( 'from' => 'Uses Trait', 'to' => 'Used By Class' ),
+		) );
+
+		p2p_register_connection_type( array(
+			'name' => 'classes_to_interfaces',
+			'from' => 'wp-parser-class',
+			'to' => 'wp-parser-interface',
+			'title' => array( 'from' => 'Implements Interface', 'to' => 'Implemented By Class' ),
+		) );
 	}
 
 	/**
@@ -134,9 +158,12 @@ class Relationships {
 		}
 
 		$this->post_types = array(
-			'hook' => $importer->post_type_hook,
-			'method' => $importer->post_type_method,
-			'function' => $importer->post_type_function,
+			'class'     => $importer->post_type_class,
+			'trait'     => $importer->post_type_trait,
+			'interface' => $importer->post_type_interface,
+			'hook'      => $importer->post_type_hook,
+			'method'    => $importer->post_type_method,
+			'function'  => $importer->post_type_function,
 		);
 	}
 
@@ -242,6 +269,33 @@ class Relationships {
 			}
 		}
 
+		if ( $this->post_types['class'] === $from_type ) {
+
+			// Classes to Classes
+			$to_type = $this->post_types['class'];
+			foreach ( (array) @$data['extends'] as $to_class ) {
+				$to_class_slug = $this->names_to_slugs( $to_class );
+
+				$this->relationships[ $from_type ][ $post_id ][ $to_type ][] = $to_class_slug;
+			}
+
+			// Classes to Traits
+			$to_type = $this->post_types['trait'];
+			foreach ( (array) @$data['uses'] as $to_trait ) {
+				$to_trait_slug = $this->names_to_slugs( $to_trait );
+
+				$this->relationships[ $from_type ][ $post_id ][ $to_type ][] = $to_trait_slug;
+			}
+
+			// Classes to Interfaces
+			$to_type = $this->post_types['interface'];
+			foreach ( (array) @$data['implements'] as $to_interface ) {
+				$to_interface_slug = $this->names_to_slugs( $to_interface );
+
+				$this->relationships[ $from_type ][ $post_id ][ $to_type ][] = $to_interface_slug;
+			}
+		}
+
 	}
 
 	/**
@@ -259,6 +313,9 @@ class Relationships {
 		p2p_delete_connections( 'methods_to_functions' );
 		p2p_delete_connections( 'methods_to_methods' );
 		p2p_delete_connections( 'methods_to_hooks' );
+		p2p_delete_connections( 'classes_to_classes' );
+		p2p_delete_connections( 'classes_to_traits' );
+		p2p_delete_connections( 'classes_to_interfaces' );
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			WP_CLI::log( 'Setting up relationships...' );
@@ -351,6 +408,43 @@ class Relationships {
 								$to_id = intval( $to_id, 10 );
 								if ( 0 != $to_id ) {
 									p2p_type( 'methods_to_hooks' )->connect( $from_id, $to_id, array( 'data' => current_time( 'mysql' ) ) );
+								}
+							}
+						}
+					}
+				}
+
+				// Connect Classes
+				if ( $from_type === $this->post_types['class'] ) {
+
+					foreach ( $to_types as $to_type => $to_slugs ) {
+
+						// ...to Classes
+						if ( $this->post_types['class'] === $to_type ) {
+							foreach ( $to_slugs as $to_slug => $to_id ) {
+								$to_id = intval( $to_id, 10 );
+								if ( 0 != $to_id ) {
+									p2p_type( 'classes_to_classes' )->connect( $from_id, $to_id, array( 'data' => current_time( 'mysql' ) ) );
+								}
+							}
+						}
+
+						// ...to Traits
+						if ( $this->post_types['trait'] === $to_type ) {
+							foreach ( $to_slugs as $to_slug => $to_id ) {
+								$to_id = intval( $to_id, 10 );
+								if ( 0 != $to_id ) {
+									p2p_type( 'classes_to_traits' )->connect( $from_id, $to_id, array( 'data' => current_time( 'mysql' ) ) );
+								}
+							}
+						}
+
+						// ...to Interfaces
+						if ( $this->post_types['interface'] === $to_type ) {
+							foreach ( $to_slugs as $to_slug => $to_id ) {
+								$to_id = intval( $to_id, 10 );
+								if ( 0 != $to_id ) {
+									p2p_type( 'classes_to_interfaces' )->connect( $from_id, $to_id, array( 'data' => current_time( 'mysql' ) ) );
 								}
 							}
 						}

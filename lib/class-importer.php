@@ -56,6 +56,20 @@ class Importer implements LoggerAwareInterface {
 	public $post_type_class;
 
 	/**
+	 * Post type name for traits
+	 *
+	 * @var string
+	 */
+	public $post_type_trait;
+
+	/**
+	 * Post type name for interfaces
+	 *
+	 * @var string
+	 */
+	public $post_type_interface;
+
+	/**
 	 * Post type name for methods
 	 *
 	 * @var string
