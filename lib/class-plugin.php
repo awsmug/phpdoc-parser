@@ -240,7 +240,11 @@ class Plugin {
 			return $link;
 		}
 
-		list( $class, $method ) = explode( '-', $post->post_name );
+		$parts = explode( '-', $post->post_name );
+
+		$method = array_pop( $parts );
+		$class  = implode( '-', $parts );
+
 		$link = home_url( user_trailingslashit( "method/$class/$method" ) );
 
 		return $link;
