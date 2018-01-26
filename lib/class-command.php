@@ -104,6 +104,71 @@ class Command extends WP_CLI_Command {
 	}
 
 	/**
+	 * Get a config value.
+	 *
+	 * @subcommand configget
+	 * @synopsis   <key>
+	 *
+	 * @param array $args
+	 */
+	public function configget( $args ) {
+		list( $key ) = $args;
+
+		WP_CLI::line();
+
+		$value = Config::getInstance()->get( $key );
+		WP_CLI::line( $value );
+	}
+
+	/**
+	 * Set a config value.
+	 *
+	 * @subcommand configset
+	 * @synopsis   <key> <value>
+	 *
+	 * @param array $args
+	 */
+	public function configset( $args ) {
+		list( $key, $value ) = $args;
+
+		WP_CLI::line();
+
+		$result = Config::getInstance()->set( $key, $value );
+		if ( $result ) {
+			WP_CLI::line( sprintf( 'Config value %1$s successfully set for key %2$s.', $value, $key ) );
+		} else {
+			WP_CLI::line( sprintf( 'Could not set config value %1$s for key %2$s.', $value, $key ) );
+		}
+	}
+
+	/**
+	 * Get a list of all config values.
+	 *
+	 * @subcommand configlist
+	 * @synopsis   [--format=<format>]
+	 *
+	 * @param array $args
+	 * @param array $assoc_args
+	 */
+	public function configlist( $args, $assoc_args ) {
+		$format = isset( $assoc_args['format'] ) ? $assoc_args['format'] : 'table';
+
+		WP_CLI::line();
+
+		$list = Config::getInstance()->getList();
+
+		$result = array();
+		foreach ( $list as $key => $value ) {
+			$result[] = array(
+				'key'   => $key,
+				'value' => $value,
+			);
+		}
+
+		\WP_CLI\Utils\format_items( $format, $result, array( 'key', 'value' ) );
+	}
+
+	/**
 	 * Generate the data from the PHPDoc markup.
 	 *
 	 * @param string $path   Directory or file to scan for PHPDoc
