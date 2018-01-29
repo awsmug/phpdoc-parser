@@ -846,7 +846,7 @@ class Importer implements LoggerAwareInterface {
 
 		$anything_updated[] = update_post_meta( $post_id, '_wp-parser_line_num', (string) $data['line'] );
 		$anything_updated[] = update_post_meta( $post_id, '_wp-parser_end_line_num', (string) $data['end_line'] );
-		$anything_updated[] = update_post_meta( $post_id, '_wp-parser_tags', $data['doc']['tags'] );
+		$anything_updated[] = update_post_meta( $post_id, '_wp-parser_tags', $this->doubleslash_tags( $data['doc']['tags'] ) );
 
 		// If the post didn't need to be updated, but meta or tax changed, update it to bump last modified.
 		if ( ! $is_new_post && ! $post_needed_update && array_filter( $anything_updated ) ) {
@@ -953,5 +953,30 @@ class Importer implements LoggerAwareInterface {
 				$this->anything_updated[] = true;
 			}
 		}
+	}
+
+	/**
+	 * Double-slashes tag data, to prevent namespace slashes from getting stripped.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array $tags Tags data.
+	 * @return array Double-slashed tags data.
+	 */
+	protected function doubleslash_tags( $tags ) {
+		foreach ( $tags as $key => $tag ) {
+			if ( is_array( $tag ) ) {
+				$tags[ $key ] = $this->doubleslash_tags( $tag );
+			} elseif ( is_object( $tag ) ) {
+				$tags[ $key ] = (object) $this->doubleslash_tags( get_object_vars( $tag ) );
+			} elseif ( is_string( $tag ) && false !== strpos( $tag, '\\' ) ) {
+				if ( 0 === strpos( $tag, '\\' ) ) {
+					$tag = substr( $tag, 1 );
+				}
+				$tags[ $key ] = str_replace( '\\', '\\\\', $tag );
+			}
+		}
+
+		return $tags;
 	}
 }
