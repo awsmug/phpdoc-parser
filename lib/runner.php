@@ -26,6 +26,10 @@ function get_wp_files( $directory ) {
 				continue;
 			}
 
+			if ( should_ignore_wp_file( $file->getPathname(), $directory ) ) {
+				continue;
+			}
+
 			$files[] = $file->getPathname();
 		}
 	} catch ( \UnexpectedValueException $exc ) {
@@ -36,6 +40,56 @@ function get_wp_files( $directory ) {
 	}
 
 	return $files;
+}
+
+/**
+ * @param string $path
+ * @param string $basedir
+ *
+ * @return bool
+ */
+function should_ignore_wp_file( $path, $basedir ) {
+	$relative_path = $path;
+	if ( strpos( $path, $basedir ) === 0 ) {
+	    $relative_path = substr( $path, ( strlen( $basedir ) + 1 ) );
+	}
+
+	if ( 0 !== strpos( $relative_path, './' ) ) {
+		if ( 0 !== strpos( $relative_path, '/' ) ) {
+			$relative_path = './' . $relative_path;
+		} else {
+			$relative_path = '.' . $relative_path;
+		}
+	}
+
+	$ignore_patterns = array(
+		'*/assets/*',
+		'*/node_modules/*',
+		'*/test/*',
+		'*/tests/*',
+		'*/tmp/*',
+		'*/vendor/*',
+	);
+
+	foreach ( $ignore_patterns as $pattern ) {
+		$replacements = array(
+			'\\,' => ',',
+			'*'   => '.*',
+		);
+
+		if ( DIRECTORY_SEPARATOR === '\\' ) {
+			$replacements['/'] = '\\\\';
+		}
+
+		$pattern = strtr( $pattern, $replacements );
+
+		$pattern = '`' . $pattern . '`i';
+		if ( preg_match( $pattern, $relative_path ) === 1 ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
